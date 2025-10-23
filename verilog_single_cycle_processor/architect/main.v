@@ -2,6 +2,7 @@
 // Control Unit - done
 // Immediate Decoder - done
 // Multiplexer - to-do
+// Reg_file - done
 
 // srcA and srcB are the two 32-bit inputs to the ALU
 // alu_control is a 3-bit control signal that determines the operation to be performed
@@ -46,7 +47,7 @@ module control_unit(
     output reg       MemWrite,
     output reg [2:0] ALUControl,
     output reg       ALUSrc,
-    output reg [1:0] immControl);
+    output reg [2:0] immControl);
 
 // block defines opcodes (more readable xd)
 localparam R_TYPE   = 7'b0110011;
@@ -59,7 +60,8 @@ localparam JALR     = 7'b1100111;
 localparam ADD_V    = 7'b0001011;
 localparam AVG_V    = 7'b0001011;
 
-always @(*) begin
+always @(*) 
+begin
   BranchBeq   = 0;
   BranchJal   = 0;
   BranchJalr  = 0;
@@ -68,7 +70,7 @@ always @(*) begin
   MemWrite    = 0;
   ALUControl  = 3'b000;
   ALUSrc      = 0;
-  immControl  = 2'b00;
+  immControl  = 3'b000;
 
   case (opcode)
     R_TYPE: begin
@@ -115,14 +117,14 @@ always @(*) begin
     JAL: begin
       RegWrite  = 1;
       BranchJal = 1;
-      immControl = 2'b10;
+      immControl = 3'b101;
     end
 
     JALR: begin
       RegWrite  = 1;
       BranchJalr = 1;
       ALUSrc = 1;
-      immControl = 2'b01;
+      immControl = 3'b001;
     end
 
     ADD_V: begin
@@ -143,7 +145,7 @@ always @(*) begin
       BranchJalr = 0;
       ALUSrc     = 0;
       ALUControl = 3'b000;
-      immControl = 2'b00;
+      immControl = 3'b000;
     end
 
   endcase
@@ -169,4 +171,22 @@ begin
     endcase
 end
 endmodule
+
+module reg_file(
+    input clk,
+    input is_signal,
+    input [4:0] rs1, rs2, res,
+    input [31:0] wd3,
+    output [31:0] rd1, rd2);
+
+  reg [31:0] regs [31:0];
+
+  always @(posedge clk)
+    if (is_signal && (res != 0))
+      regs[res] <= wd3;
+
+  assign rd1 = (rs1 == 0) ? 0 : regs[rs1];
+  assign rd2 = (rs2 == 0) ? 0 : regs[rs2];
+endmodule
+
 
