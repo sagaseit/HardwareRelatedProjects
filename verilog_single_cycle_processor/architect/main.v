@@ -1,3 +1,8 @@
+// ALU - done
+// Control Unit - done
+// Immediate Decoder - done
+// Multiplexer - to-do
+
 // srcA and srcB are the two 32-bit inputs to the ALU
 // alu_control is a 3-bit control signal that determines the operation to be performed
 // alu_out is the 32-bit output of the ALU
@@ -43,21 +48,125 @@ module control_unit(
     output reg       ALUSrc,
     output reg [1:0] immControl);
 
-always @(*)
-begin
-    case (opcode)
-    7'b0110011:
-    7'b0010011:
-    7'b0100011:
-    7'b1100011:
-    7'b0000011:
-    7'b0110111:
-    7'b1101111:
-    7'b1100111:
-    7'b0001011:
+// block defines opcodes (more readable xd)
+localparam R_TYPE   = 7'b0110011;
+localparam I_TYPE   = 7'b0010011;
+localparam I_LOAD   = 7'b0000011;
+localparam S_TYPE   = 7'b0100011;
+localparam B_TYPE   = 7'b1100011;  
+localparam JAL      = 7'b1101111;
+localparam JALR     = 7'b1100111;
+localparam ADD_V    = 7'b0001011;
+localparam AVG_V    = 7'b0001011;
 
+always @(*) begin
+  BranchBeq   = 0;
+  BranchJal   = 0;
+  BranchJalr  = 0;
+  RegWrite    = 0;
+  MemToReg    = 0;
+  MemWrite    = 0;
+  ALUControl  = 3'b000;
+  ALUSrc      = 0;
+  immControl  = 2'b00;
 
-    endcase
+  case (opcode)
+    R_TYPE: begin
+      RegWrite = 1;
+      ALUSrc   = 0;
+      if (funct3 == 3'b000) begin
+        if (funct7 == 7'b0100000)
+          ALUControl = 3'b001; // sub
+        else
+          ALUControl = 3'b000; // add
+      end
+      else if (funct3 == 3'b111)
+        ALUControl = 3'b010; // and
+      else if (funct3 == 3'b101)
+        ALUControl = 3'b011; // srl
+    end
+
+    I_TYPE: begin
+      RegWrite = 1;
+      ALUSrc   = 1;
+      ALUControl = 3'b000;
+    end
+
+    I_LOAD: begin
+      RegWrite = 1;
+      ALUSrc   = 1;
+      MemToReg = 1;
+      ALUControl = 3'b000;
+    end
+
+    S_TYPE: begin
+      MemWrite = 1;
+      ALUSrc   = 1;
+      ALUControl = 3'b000;
+    end
+
+    B_TYPE: begin
+      if (funct3 == 3'b000)
+        BranchBeq = 1;
+      else if (funct3 == 3'b100)
+        BranchBeq = 1;
+    end
+
+    JAL: begin
+      RegWrite  = 1;
+      BranchJal = 1;
+      immControl = 2'b10;
+    end
+
+    JALR: begin
+      RegWrite  = 1;
+      BranchJalr = 1;
+      ALUSrc = 1;
+      immControl = 2'b01;
+    end
+
+    ADD_V: begin
+      RegWrite = 1;
+      ALUSrc   = 0;
+      if (funct3 == 3'b000)
+        ALUControl = 3'b100;
+      else if (funct3 == 3'b001)
+        ALUControl = 3'b101;
+    end
+
+    default: begin
+      RegWrite   = 0;
+      MemToReg   = 0;
+      MemWrite   = 0;
+      BranchBeq  = 0;
+      BranchJal  = 0;
+      BranchJalr = 0;
+      ALUSrc     = 0;
+      ALUControl = 3'b000;
+      immControl = 2'b00;
+    end
+
+  endcase
 end
 
 endmodule
+
+module imm_decode(
+    input  [31:0] instr,
+    input  [2:0]  immControl,
+    output reg [31:0] imm_out);
+
+always @(*)
+begin
+    case (immControl)
+        3'b000: imm_out = 0; // R-type
+        3'b001: imm_out =  {{20{instr[31]}}, instr[31:20]}; // I-type
+        3'b010: imm_out = {{20{instr[31]}}, instr[31:25], instr[11:7]}; // S-type
+        3'b011: imm_out = {{19{instr[31]}}, instr[31], instr[7], instr[30:25], instr[11:8], 1'b0}; // B-type
+        3'b100: imm_out = {instr[31:12], 12'b0}; // U-type
+        3'b101: imm_out = {{11{instr[31]}}, instr[31], instr[19:12], instr[20], instr[30:21], 1'b0}; // J-type
+        default: imm_out = 32'b0;
+    endcase
+end
+endmodule
+
