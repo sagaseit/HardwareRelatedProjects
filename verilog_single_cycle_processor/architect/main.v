@@ -1,7 +1,7 @@
 // ALU - done
 // Control Unit - done
 // Immediate Decoder - done
-// Multiplexer - to-do
+// Multiplexer - done
 // Reg_file - done
 
 // srcA and srcB are the two 32-bit inputs to the ALU
@@ -176,17 +176,29 @@ module reg_file(
     input clk,
     input is_signal,
     input [4:0] rs1, rs2, res,
-    input [31:0] wd3,
+    input [31:0] wd,
     output [31:0] rd1, rd2);
 
   reg [31:0] regs [31:0];
 
   always @(posedge clk)
     if (is_signal && (res != 0))
-      regs[res] <= wd3;
+      regs[res] <= wd;
 
   assign rd1 = (rs1 == 0) ? 0 : regs[rs1];
   assign rd2 = (rs2 == 0) ? 0 : regs[rs2];
 endmodule
 
+module mux2_1(input a, b, select,
+                 output reg y);
+  always@(*)
+    if(select==0) y = a;
+    else y = b;
+endmodule
 
+module adder32(
+    input  [31:0] a, b,
+    output [31:0] y
+);
+  assign y = a + b;
+endmodule
